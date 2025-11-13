@@ -3,4 +3,3 @@ submission/
 train/images/*
 train/output/*
 train/trimaps/*
-pycodes/

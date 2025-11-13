@@ -18,7 +18,7 @@ MAP_PATH = 'train/trimaps'
 # Learning parameters
 BATCH_SIZE = 16
 LEARNING_RATE = 0.0005
-EPOCHS = 10
+EPOCHS = 1440
 
 # Output paths
 OUTPUT_PATH = 'train/output'

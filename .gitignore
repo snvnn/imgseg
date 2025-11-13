@@ -3,4 +3,4 @@ submission/
 train/images/*
 train/output/*
 train/trimaps/*
-pycodes/_pycache_/
+pycodes/__pycache__/

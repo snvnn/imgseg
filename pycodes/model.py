@@ -55,6 +55,42 @@ class Down(nn.Module):
     def forward(self, x):
         return self.block(self.pool(x))
 
+class AttentionGate(nn.Module):
+    """
+    Skip connection에 사용하는 Attention Gate.
+    g: decoder feature (업샘플된 feature)
+    x: encoder에서 온 skip feature
+    """
+    def __init__(self, F_g, F_x, F_int, norm="bn"):
+        super().__init__()
+        self.W_g = nn.Sequential(
+            nn.Conv2d(F_g, F_int, kernel_size=1, bias=False),
+            get_norm_layer(F_int, norm),
+            nn.ReLU(inplace=True)
+        )
+        self.W_x = nn.Sequential(
+            nn.Conv2d(F_x, F_int, kernel_size=1, bias=False),
+            get_norm_layer(F_int, norm),
+            nn.ReLU(inplace=True)
+        )
+        self.psi = nn.Sequential(
+            nn.Conv2d(F_int, 1, kernel_size=1, bias=True),
+            nn.Sigmoid()
+        )
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, g, x):
+        # g: upsampled decoder feature, x: encoder skip feature
+        g1 = self.W_g(g)
+        x1 = self.W_x(x)
+
+        # 두 feature를 더한 뒤 비선형 변환 → 1채널 마스크
+        psi = self.relu(g1 + x1)
+        psi = self.psi(psi)  # [B, 1, H, W]
+
+        # skip feature에 마스크를 곱해 중요한 위치만 통과
+        return x * psi
+
 class Up(nn.Module):
     def __init__(self, in_ch, out_ch, norm="bn", se=False, drop=0.0):
         super().__init__()
@@ -63,12 +99,27 @@ class Up(nn.Module):
             nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
             nn.Conv2d(in_ch, out_ch, 1, bias=False)
         )
+        # decoder feature(g)와 encoder skip(x)에 대한 attention gate
+        self.attn = AttentionGate(F_g=out_ch, F_x=out_ch, F_int=out_ch // 2, norm=norm)
+
+        # attention으로 필터링된 skip과 concat 후 residual block
         self.block = ResidualConv(out_ch*2, out_ch, norm=norm, se=se, drop=drop)
+
     def forward(self, x, skip):
+        # decoder feature upsample
         x = self.up(x)
+
         # 크기 보정(odd 입력일 때)
         if x.shape[-1] != skip.shape[-1] or x.shape[-2] != skip.shape[-2]:
-            x = nn.functional.pad(x, (0, skip.shape[-1]-x.shape[-1], 0, skip.shape[-2]-x.shape[-2]))
+            x = nn.functional.pad(
+                x,
+                (0, skip.shape[-1] - x.shape[-1], 0, skip.shape[-2] - x.shape[-2])
+            )
+
+        # skip connection에 attention 적용
+        skip = self.attn(x, skip)
+
+        # concat 후 convolution block
         x = torch.cat([x, skip], dim=1)
         return self.block(x)
 

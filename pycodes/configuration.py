@@ -16,9 +16,9 @@ IMAGE_PATH = 'train/images'
 MAP_PATH = 'train/trimaps'
 
 # Learning parameters
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 LEARNING_RATE = 0.0005
-EPOCHS = 1440
+EPOCHS = 100
 
 # Output paths
 OUTPUT_PATH = 'train/output'

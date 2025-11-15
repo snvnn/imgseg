@@ -4,7 +4,7 @@ from torch.optim import Adam
 from torch.nn import CrossEntropyLoss
 import time
 import pickle
-from configuration import LEARNING_RATE, EPOCHS,HISTORY_PATH, DEVICE, MODEL_PATH
+from configuration import LEARNING_RATE, EPOCHS,HISTORY_PATH, DEVICE, MODEL_PATH, MIN_DELTA, BEST_LOSS, PATIENCE
 
 
 def train(model, train_loader):
@@ -18,9 +18,10 @@ def train(model, train_loader):
   start_time = time.time()
 
   # Early stopping 설정
-  patience = 10          # 개선이 없을 때 허용할 최대 epoch 수
-  min_delta = 1e-4       # 개선으로 인정할 최소 손실 감소량
-  best_loss = float('inf')
+  patience = PATIENCE         # 개선이 없을 때 허용할 최대 epoch 수
+  min_delta = MIN_DELTA       # 개선으로 인정할 최소 손실 감소량
+  best_loss = BEST_LOSS
+
   best_state_dict = None
   epochs_no_improve = 0
 

@@ -16,9 +16,13 @@ IMAGE_PATH = 'train/images'
 MAP_PATH = 'train/trimaps'
 
 # Learning parameters
-BATCH_SIZE = 32
-LEARNING_RATE = 0.0005
+BATCH_SIZE = 16
+LEARNING_RATE = 0.0001
 EPOCHS = 100
+MIN_DELTA = 1e-4  # 개선으로 인정할 최소 손실 감소량
+BEST_LOSS = float('inf')
+PATIENCE = 10
+
 
 # Output paths
 OUTPUT_PATH = 'train/output'

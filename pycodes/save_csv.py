@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
-from configuration import IMAGE_PATH, IMAGE_SIZE, BATCH_SIZE, MAP_PATH, N_CLASSES, DEVICE, MODEL_PATH
+from configuration import IMAGE_SIZE, BATCH_SIZE, N_CLASSES, DEVICE, MODEL_PATH
 from dataset import TrimapsDataset
 from model import ImprovedUNet
 

@@ -59,7 +59,7 @@ def train(model, train_loader):
       else:
         epochs_no_improve += 1
         print(f'  -> no improvement ({epochs_no_improve}/{patience})')
-        if epochs_no_improve >= patience:
+        if (patience > 0 and epochs_no_improve >= patience):
           print(f'Early stopping triggered at epoch {epoch+1}')
           break
   except KeyboardInterrupt:

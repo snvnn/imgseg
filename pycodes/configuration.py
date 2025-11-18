@@ -18,10 +18,10 @@ MAP_PATH = 'train/trimaps'
 # Learning parameters
 BATCH_SIZE = 16
 LEARNING_RATE = 0.0001
-EPOCHS = 100
+EPOCHS = 1500
 MIN_DELTA = 1e-4  # 개선으로 인정할 최소 손실 감소량
 BEST_LOSS = float('inf')
-PATIENCE = 10
+PATIENCE = -1     # PATIENCE > 0 일 때 Early Stop 동작
 
 
 # Output paths

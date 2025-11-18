@@ -201,5 +201,72 @@ class ImprovedUNet(nn.Module):
         d2 = self.up2(d3, e3)  # H/4
         d1 = self.up1(d2, e2)  # H/2
         d0 = self.up0(d1, e1)  # H
+
         logits = self.head(d0) # [B, out_channel, H, W]
+        return logits
+
+
+# 조금 더 깊은 U-Net 구조 (DeepUNet)
+class DeepUNet(nn.Module):
+    """
+    더 깊은 인코더/디코더 스택을 가진 변형 U-Net.
+    - enc를 5단계까지 내려가고, bottleneck 채널 수를 늘려 더 풍부한 표현을 학습
+    - 기존 블록(ResidualConv, Down, Up, ASPP)을 재사용하므로 호환성 유지
+    사용법은 ImprovedUNet과 동일하되 클래스 이름만 DeepUNet으로 변경하면 됨.
+    """
+    def __init__(self, in_channel, out_channel, img_size: Optional[tuple] = None,
+                 base_ch=32, norm="bn", se=True, drop=0.1, use_aspp=True):
+        super().__init__()
+        self.img_size = img_size
+
+        # Encoder (5단계)
+        self.enc1 = ResidualConv(in_channel,      base_ch,       norm=norm, se=se, drop=0.0)
+        self.enc2 = Down(base_ch,                 base_ch * 2,   norm=norm, se=se, drop=drop)
+        self.enc3 = Down(base_ch * 2,             base_ch * 4,   norm=norm, se=se, drop=drop)
+        self.enc4 = Down(base_ch * 4,             base_ch * 8,   norm=norm, se=se, drop=drop)
+        self.enc5 = Down(base_ch * 8,             base_ch * 16,  norm=norm, se=se, drop=drop)
+
+        # Bottleneck
+        self.bottleneck = ResidualConv(base_ch * 16, base_ch * 32, norm=norm, se=se, drop=drop)
+        self.aspp = ASPP(base_ch * 32, base_ch * 32, rates=(1, 6, 12, 18), norm=norm) if use_aspp else nn.Identity()
+
+        # Decoder (5단계 up)
+        self.up4 = Up(base_ch * 32, base_ch * 16, norm=norm, se=se, drop=drop)   # skip: enc5
+        self.up3 = Up(base_ch * 16, base_ch * 8,  norm=norm, se=se, drop=drop)   # skip: enc4
+        self.up2 = Up(base_ch * 8,  base_ch * 4,  norm=norm, se=se, drop=drop)   # skip: enc3
+        self.up1 = Up(base_ch * 4,  base_ch * 2,  norm=norm, se=se, drop=drop)   # skip: enc2
+        self.up0 = Up(base_ch * 2,  base_ch,      norm=norm, se=se, drop=0.0)    # skip: enc1
+
+        self.head = nn.Conv2d(base_ch, out_channel, kernel_size=1)
+
+        # Kaiming init
+        self.apply(self._init_weights)
+
+    @staticmethod
+    def _init_weights(m):
+        if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+            nn.init.kaiming_normal_(m.weight, nonlinearity="relu")
+            if getattr(m, "bias", None) is not None:
+                nn.init.zeros_(m.bias)
+
+    def forward(self, x):
+        # encoder
+        e1 = self.enc1(x)       # H
+        e2 = self.enc2(e1)      # H/2
+        e3 = self.enc3(e2)      # H/4
+        e4 = self.enc4(e3)      # H/8
+        e5 = self.enc5(e4)      # H/16
+
+        # bottleneck + ASPP
+        b = self.bottleneck(e5)
+        b = self.aspp(b)
+
+        # decoder with attention gates & skips
+        d4 = self.up4(b,  e5)   # H/16
+        d3 = self.up3(d4, e4)   # H/8
+        d2 = self.up2(d3, e3)   # H/4
+        d1 = self.up1(d2, e2)   # H/2
+        d0 = self.up0(d1, e1)   # H
+
+        logits = self.head(d0)
         return logits

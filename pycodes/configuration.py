@@ -1,3 +1,4 @@
+from model import ImprovedUNet, DeepUNet
 import os
 import torch
 
@@ -22,6 +23,9 @@ EPOCHS = 1500
 MIN_DELTA = 1e-4  # 개선으로 인정할 최소 손실 감소량
 BEST_LOSS = float('inf')
 PATIENCE = -1     # PATIENCE > 0 일 때 Early Stop 동작
+
+MODEL = DeepUNet(in_channel=3, out_channel=N_CLASSES, img_size=IMAGE_SIZE,
+                     base_ch=32, norm="bn", se=True, drop=0.1, use_aspp=True)            # model 선택 파라미터, ImprovedUNet과 DeepUNet중 선택
 
 CHECKPOINT = True           # True: 기존에 생성된 모델 가중치를 불러와 학습, False: 처음부터 학습
 LR_SCHEDULING_FACTOR = 0.5  # 학습률 스케쥴러에 적용할 학습률 감소 정도

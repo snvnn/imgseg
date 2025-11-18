@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
-from configuration import IMAGE_SIZE, BATCH_SIZE, N_CLASSES, DEVICE, MODEL_PATH
+from configuration import IMAGE_SIZE, BATCH_SIZE, N_CLASSES, DEVICE, MODEL_PATH, MODEL
 from dataset import TrimapsDataset
 from model import ImprovedUNet
 
@@ -67,8 +67,7 @@ SUBMISSION_FILE_PATH = 'submission/submission.csv'
 test_set = TrimapsDataset(TEST_PATH, '', test=True)
 test_loader = DataLoader(test_set, batch_size=BATCH_SIZE, shuffle=False)
 
-model = ImprovedUNet(in_channel=3, out_channel=N_CLASSES, img_size=IMAGE_SIZE,
-                     base_ch=32, norm="bn", se=True, drop=0.1, use_aspp=True)
+model = MODEL
 model.load_state_dict(torch.load(MODEL_PATH))
 model = model.to(DEVICE)
 

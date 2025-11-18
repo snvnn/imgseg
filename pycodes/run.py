@@ -1,6 +1,6 @@
 from torch.utils.data import DataLoader
 from dataset import TrimapsDataset
-from configuration import IMAGE_PATH, IMAGE_SIZE, BATCH_SIZE, MAP_PATH, MODEL_PATH, N_CLASSES, DEVICE, CHECKPOINT, LEARNING_RATE, LR_SCHEDULING_FACTOR, LR_SCHEDULING_PATIENCE, MIN_SCHEDULING_LR, VERBOSE
+from configuration import IMAGE_PATH, IMAGE_SIZE, BATCH_SIZE, MAP_PATH, MODEL_PATH, N_CLASSES, DEVICE, CHECKPOINT, LEARNING_RATE, LR_SCHEDULING_FACTOR, LR_SCHEDULING_PATIENCE, MIN_SCHEDULING_LR, VERBOSE, MODEL
 from model import ImprovedUNet
 from train import train
 
@@ -12,8 +12,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 train_set = TrimapsDataset(IMAGE_PATH, MAP_PATH, test=False)
 train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True)
 
-model = ImprovedUNet(in_channel=3, out_channel=N_CLASSES, img_size=IMAGE_SIZE,
-                     base_ch=32, norm="bn", se=True, drop=0.1, use_aspp=True)
+model = MODEL
 optimizer = Adam(model.parameters(), lr=LEARNING_RATE)
 scheduler = ReduceLROnPlateau(
     optimizer,

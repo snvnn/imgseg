@@ -1,5 +1,5 @@
 from model import ImprovedUNet
-from configuration import N_CLASSES, IMAGE_SIZE, MODEL_PATH, DEVICE, IMAGE_PATH, MAP_PATH, PRED_PLOT_PATH
+from configuration import N_CLASSES, IMAGE_SIZE, MODEL_PATH, DEVICE, IMAGE_PATH, MAP_PATH, PRED_PLOT_PATH, MODEL
 
 import os
 import torch
@@ -9,8 +9,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 # 저장된 모델 weight 로드
-model = ImprovedUNet(in_channel=3, out_channel=N_CLASSES, img_size=IMAGE_SIZE,
-                     base_ch=32, norm="bn", se=True, drop=0.1, use_aspp=True)
+model = MODEL
 model.load_state_dict(torch.load(MODEL_PATH))
 model = model.to(DEVICE)
 model.eval()

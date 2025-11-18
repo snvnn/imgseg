@@ -1,5 +1,5 @@
 from dataset import TrimapsDataset
-from configuration import BATCH_SIZE, N_CLASSES, IMAGE_SIZE, MODEL_PATH, DEVICE, HISTORY_PATH, HISTORY_LOGPLOT_PATH, HISTORY_PLOT_PATH
+from configuration import BATCH_SIZE, N_CLASSES, IMAGE_SIZE, MODEL_PATH, DEVICE, HISTORY_PATH, HISTORY_LOGPLOT_PATH, HISTORY_PLOT_PATH, MODEL
 from model import ImprovedUNet
 from save_csv import get_rle
 
@@ -17,8 +17,7 @@ SUBMISSION_FILE_PATH = 'submission/submission.csv'
 test_set = TrimapsDataset(TEST_PATH, '', test=True)
 test_loader = DataLoader(test_set, batch_size=BATCH_SIZE, shuffle=False)
 
-model = ImprovedUNet(in_channel=3, out_channel=N_CLASSES, img_size=IMAGE_SIZE,
-                     base_ch=32, norm="bn", se=True, drop=0.1, use_aspp=True)
+model = MODEL
 model.load_state_dict(torch.load(MODEL_PATH))
 model = model.to(DEVICE)
 

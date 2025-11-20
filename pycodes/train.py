@@ -1,14 +1,39 @@
 import torch
+import torch.nn.functional as F
 from copy import deepcopy
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.nn import CrossEntropyLoss
 import time
 import pickle
-from configuration import LEARNING_RATE, EPOCHS,HISTORY_PATH, DEVICE, MODEL_PATH, MIN_DELTA, BEST_LOSS, PATIENCE
+from configuration import LEARNING_RATE, EPOCHS,HISTORY_PATH, DEVICE, MODEL_PATH, MIN_DELTA, BEST_LOSS, PATIENCE, LAMBDA
 
 CHECKPOINT_PATH = MODEL_PATH + ".ckpt"
 
+def dice_loss(pred, target, epsilon=1e-6):
+    """
+    pred: [B, C, H, W] - softmax 적용 전 logits
+    target: [B, H, W]  - class index (0~C-1)
+    """
+    num_classes = pred.shape[1]
+
+    # Softmax로 확률화
+    pred = F.softmax(pred, dim=1)
+
+    # target을 one-hot으로 변환 → shape: [B, C, H, W]
+    target_one_hot = F.one_hot(target, num_classes=num_classes)
+    target_one_hot = target_one_hot.permute(0, 3, 1, 2).float()
+
+    # Dice 계산
+    dims = (0, 2, 3)  # batch + H + W
+    intersection = torch.sum(pred * target_one_hot, dims)
+    cardinality  = torch.sum(pred + target_one_hot, dims)
+
+    dice_per_class = (2. * intersection + epsilon) / (cardinality + epsilon)
+
+    # 평균 Dice loss (1 - Dice)
+    loss = 1.0 - dice_per_class.mean()
+    return loss
 
 def train(model, train_loader, optimizer=None, scheduler=None, start_epoch=0):
 
@@ -50,7 +75,10 @@ def train(model, train_loader, optimizer=None, scheduler=None, start_epoch=0):
         images, targets = images.to(DEVICE), targets.to(DEVICE)
 
         pred = model(images)
-        loss = loss_fn(pred, targets)
+        ce = loss_fn(pred, targets)          # CrossEntropy
+        dice = dice_loss(pred, targets)      # 위에 정의한 Dice
+
+        loss = ce + LAMBDA * dice            
 
         optimizer.zero_grad()
         loss.backward()
@@ -92,6 +120,7 @@ def train(model, train_loader, optimizer=None, scheduler=None, start_epoch=0):
         "optimizer_state": optimizer.state_dict(),
         "scheduler_state": scheduler.state_dict() if scheduler is not None else None
       }
+      print("Current LR:", optimizer.param_groups[0]["lr"])
       torch.save(checkpoint, CHECKPOINT_PATH)
     
   except KeyboardInterrupt:

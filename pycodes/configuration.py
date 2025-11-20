@@ -33,6 +33,8 @@ LR_SCHEDULING_PATIENCE = 3  # 학습률 스케쥴러에 적용할 patience
 MIN_SCHEDULING_LR = 1e-6    # LR이 줄어들 수 있는 최소값
 VERBOSE = True              # 학습률 스케줄러 디버깅 메시지 출력 여부
 
+LAMBDA = 0.5                # Dice Loss Fuction 반영 비율 범위: 0.3 ~ 1.0
+
 # Output paths
 OUTPUT_PATH = 'train/output'
 if not os.path.exists(OUTPUT_PATH):

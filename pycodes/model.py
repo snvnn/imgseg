@@ -144,6 +144,88 @@ class ASPP(nn.Module):
         x = torch.cat(feats, dim=1)
         return self.project(x)
 
+class DepthwiseSeparableConv(nn.Module):
+    """Depthwise separable conv block to reduce parameters/FLOPs."""
+    def __init__(self, in_ch, out_ch, stride=1, norm="bn"):
+        super().__init__()
+        self.depth = nn.Conv2d(in_ch, in_ch, 3, stride=stride, padding=1, groups=in_ch, bias=False)
+        self.depth_norm = get_norm_layer(in_ch, norm)
+        self.point = nn.Conv2d(in_ch, out_ch, 1, bias=False)
+        self.point_norm = get_norm_layer(out_ch, norm)
+        self.act = nn.SiLU(inplace=True)
+
+    def forward(self, x):
+        x = self.act(self.depth_norm(self.depth(x)))
+        x = self.point_norm(self.point(x))
+        return self.act(x)
+
+class MobileResidual(nn.Module):
+    """
+    Lightweight MBConv-style residual block with optional SE.
+    expand: channel expansion factor in the depthwise branch.
+    """
+    def __init__(self, in_ch, out_ch, expand=4, stride=1, norm="bn", se=True, drop=0.0, use_skip=True):
+        super().__init__()
+        hidden = int(in_ch * expand)
+        self.use_skip = use_skip and stride == 1 and in_ch == out_ch
+
+        self.expand = nn.Conv2d(in_ch, hidden, 1, bias=False)
+        self.expand_norm = get_norm_layer(hidden, norm)
+
+        self.depth = nn.Conv2d(hidden, hidden, 3, stride=stride, padding=1, groups=hidden, bias=False)
+        self.depth_norm = get_norm_layer(hidden, norm)
+
+        self.se = SEBlock(hidden) if se else nn.Identity()
+        self.project = nn.Conv2d(hidden, out_ch, 1, bias=False)
+        self.project_norm = get_norm_layer(out_ch, norm)
+
+        self.act = nn.SiLU(inplace=True)
+        self.drop = nn.Dropout2d(p=drop) if drop > 0 else nn.Identity()
+
+    def forward(self, x):
+        residual = x
+        x = self.act(self.expand_norm(self.expand(x)))
+        x = self.act(self.depth_norm(self.depth(x)))
+        x = self.se(x)
+        x = self.project_norm(self.project(x))
+        x = self.drop(x)
+        if self.use_skip:
+            x = x + residual
+        return self.act(x)
+
+class DownMobile(nn.Module):
+    """Strided MBConv downsample."""
+    def __init__(self, in_ch, out_ch, norm="bn", se=True, drop=0.0, expand=4):
+        super().__init__()
+        self.block = MobileResidual(in_ch, out_ch, expand=expand, stride=2,
+                                    norm=norm, se=se, drop=drop, use_skip=False)
+    def forward(self, x):
+        return self.block(x)
+
+class UpLite(nn.Module):
+    """Lightweight up block using depthwise-friendly residual fusion."""
+    def __init__(self, in_ch, skip_ch, out_ch, norm="bn", se=True, drop=0.0, use_attention=True):
+        super().__init__()
+        self.up = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
+            nn.Conv2d(in_ch, out_ch, 1, bias=False),
+            get_norm_layer(out_ch, norm),
+            nn.SiLU(inplace=True)
+        )
+        self.skip_proj = nn.Sequential(
+            nn.Conv2d(skip_ch, out_ch, 1, bias=False),
+            get_norm_layer(out_ch, norm)
+        )
+        self.attn = AttentionGate(out_ch, out_ch, out_ch // 2, norm=norm) if use_attention else nn.Identity()
+        self.fuse = MobileResidual(out_ch * 2, out_ch, expand=2.0, stride=1, norm=norm, se=se, drop=drop)
+
+    def forward(self, x, skip):
+        x = self.up(x)
+        skip = self.skip_proj(skip)
+        skip = self.attn(x, skip) if isinstance(self.attn, AttentionGate) else skip
+        x = torch.cat([x, skip], dim=1)
+        return self.fuse(x)
+
 class ImprovedUNet(nn.Module):
     """
     - in_channel: 입력 채널(예: RGB=3)
@@ -270,3 +352,60 @@ class DeepUNet(nn.Module):
 
         logits = self.head(d0)
         return logits
+
+class OptimizedUNet(nn.Module):
+    """
+    Lighter U-Net variant using depthwise/MBConv blocks.
+    Reduces parameters while keeping ASPP and attention optional.
+    """
+    def __init__(self, in_channel, out_channel, img_size: Optional[tuple] = None,
+                 base_ch=32, norm="bn", se=True, drop=0.05, use_aspp=True, use_attention=True):
+        super().__init__()
+        self.img_size = img_size
+
+        # Stem + encoder
+        self.stem = nn.Sequential(
+            nn.Conv2d(in_channel, base_ch, 3, padding=1, bias=False),
+            get_norm_layer(base_ch, norm),
+            nn.SiLU(inplace=True)
+        )
+        self.enc1 = MobileResidual(base_ch, base_ch, expand=2.0, stride=1, norm=norm, se=se, drop=0.0)
+        self.enc2 = DownMobile(base_ch, base_ch * 2, norm=norm, se=se, drop=drop, expand=3.0)
+        self.enc3 = DownMobile(base_ch * 2, base_ch * 4, norm=norm, se=se, drop=drop, expand=3.0)
+        self.enc4 = DownMobile(base_ch * 4, base_ch * 8, norm=norm, se=se, drop=drop, expand=3.0)
+
+        # Bottleneck
+        self.bottleneck = MobileResidual(base_ch * 8, base_ch * 8, expand=4.0, stride=1, norm=norm, se=se, drop=drop)
+        self.aspp = ASPP(base_ch * 8, base_ch * 8, rates=(1, 6, 12, 18), norm=norm) if use_aspp else nn.Identity()
+
+        # Decoder
+        self.up3 = UpLite(base_ch * 8, base_ch * 8, base_ch * 4, norm=norm, se=se, drop=drop, use_attention=use_attention)
+        self.up2 = UpLite(base_ch * 4, base_ch * 4, base_ch * 2, norm=norm, se=se, drop=drop, use_attention=use_attention)
+        self.up1 = UpLite(base_ch * 2, base_ch * 2, base_ch,     norm=norm, se=se, drop=drop, use_attention=use_attention)
+        self.up0 = UpLite(base_ch,     base_ch,     base_ch,     norm=norm, se=se, drop=0.0,  use_attention=use_attention)
+
+        self.head = nn.Conv2d(base_ch, out_channel, kernel_size=1)
+        self.apply(self._init_weights)
+
+    @staticmethod
+    def _init_weights(m):
+        if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+            nn.init.kaiming_normal_(m.weight, nonlinearity="relu")
+            if getattr(m, "bias", None) is not None:
+                nn.init.zeros_(m.bias)
+
+    def forward(self, x):
+        x = self.stem(x)
+        e1 = self.enc1(x)      # H
+        e2 = self.enc2(e1)     # H/2
+        e3 = self.enc3(e2)     # H/4
+        e4 = self.enc4(e3)     # H/8
+
+        b = self.bottleneck(e4)
+        b = self.aspp(b)
+
+        d3 = self.up3(b,  e4)  # H/8
+        d2 = self.up2(d3, e3)  # H/4
+        d1 = self.up1(d2, e2)  # H/2
+        d0 = self.up0(d1, e1)  # H
+        return self.head(d0)

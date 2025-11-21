@@ -1,12 +1,12 @@
 import torch
 import torch.nn.functional as F
 from copy import deepcopy
-from torch.optim import Adam
+from torch.optim import AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.nn import CrossEntropyLoss
 import time
 import pickle
-from configuration import LEARNING_RATE, EPOCHS,HISTORY_PATH, DEVICE, MODEL_PATH, MIN_DELTA, BEST_LOSS, PATIENCE, LAMBDA
+from configuration import LEARNING_RATE, EPOCHS, HISTORY_PATH, DEVICE, MODEL_PATH, MIN_DELTA, BEST_LOSS, PATIENCE, LAMBDA, WEIGHT_DECAY
 import threading
 from save_csv import get_rle  # assumes function exists
 from configuration import SUBMISSION_DIR
@@ -49,9 +49,9 @@ def train(model, train_loader, test_loader, optimizer=None, scheduler=None, star
   model.train()
 
   loss_fn = CrossEntropyLoss()
-  # 외부에서 optimizer를 넘겨주지 않으면 기본 Adam 생성
+  # 외부에서 optimizer를 넘겨주지 않으면 기본 AdamW 생성
   if optimizer is None:
-    optimizer = Adam(model.parameters(), lr=LEARNING_RATE)
+    optimizer = AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
 
   # 외부에서 scheduler를 넘겨주지 않으면 기본 ReduceLROnPlateau 생성
   if scheduler is None:

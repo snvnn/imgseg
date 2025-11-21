@@ -1,7 +1,6 @@
 from torch.utils.data import DataLoader
 from dataset import TrimapsDataset
-from configuration import IMAGE_PATH, BATCH_SIZE, MAP_PATH, MODEL_PATH, DEVICE, CHECKPOINT, LEARNING_RATE, LR_SCHEDULING_FACTOR, LR_SCHEDULING_PATIENCE, MIN_SCHEDULING_LR, VERBOSE, MODEL
-from model import ImprovedUNet
+from configuration import IMAGE_PATH, BATCH_SIZE, MAP_PATH, MODEL_PATH, DEVICE, CHECKPOINT, LEARNING_RATE, LR_SCHEDULING_FACTOR, LR_SCHEDULING_PATIENCE, MIN_SCHEDULING_LR, MODEL
 from train import train
 
 import os
@@ -19,8 +18,7 @@ scheduler = ReduceLROnPlateau(
     mode="min",
     factor=LR_SCHEDULING_FACTOR,
     patience=LR_SCHEDULING_PATIENCE,
-    min_lr=MIN_SCHEDULING_LR,
-    verbose=VERBOSE,
+    min_lr=MIN_SCHEDULING_LR
 )
 
 start_epoch = 0

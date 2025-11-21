@@ -19,19 +19,18 @@ MAP_PATH = 'train/trimaps'
 # Learning parameters
 BATCH_SIZE = 16
 LEARNING_RATE = 0.001
-EPOCHS = 40
+EPOCHS = 60
 MIN_DELTA = 1e-4  # 개선으로 인정할 최소 손실 감소량
 BEST_LOSS = float('inf')
 PATIENCE = 10     # PATIENCE > 0 일 때 Early Stop 동작
 
 MODEL = DeepUNet(in_channel=3, out_channel=N_CLASSES, img_size=IMAGE_SIZE,
-                     base_ch=32, norm="bn", se=True, drop=0, use_aspp=False)            # model 선택 파라미터, ImprovedUNet과 DeepUNet중 선택
+                     base_ch=32, norm="bn", se=True, drop=0.1, use_aspp=False)            # model 선택 파라미터, ImprovedUNet과 DeepUNet중 선택
 
 CHECKPOINT = False           # True: 기존에 생성된 모델 가중치를 불러와 학습, False: 처음부터 학습
 LR_SCHEDULING_FACTOR = 0.5  # 학습률 스케쥴러에 적용할 학습률 감소 정도
 LR_SCHEDULING_PATIENCE = 3  # 학습률 스케쥴러에 적용할 patience
 MIN_SCHEDULING_LR = 1e-6    # LR이 줄어들 수 있는 최소값
-VERBOSE = True              # 학습률 스케줄러 디버깅 메시지 출력 여부
 
 LAMBDA = 0.5                # Dice Loss Fuction 반영 비율 범위: 0.3 ~ 1.0
 

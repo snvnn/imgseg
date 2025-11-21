@@ -9,6 +9,8 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 train_set = TrimapsDataset(IMAGE_PATH, MAP_PATH, test=False)
+test_set = TrimapsDataset(IMAGE_PATH, MAP_PATH, test=True)
+test_loader = DataLoader(test_set, batch_size=BATCH_SIZE, shuffle=False)
 train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True)
 
 model = MODEL
@@ -38,4 +40,4 @@ if os.path.exists(MODEL_PATH) and CHECKPOINT:
 model = model.to(DEVICE)
 
 # train 함수 실행
-train(model, train_loader, optimizer=optimizer, scheduler=scheduler, start_epoch=start_epoch)
+train(model, train_loader, test_loader, optimizer=optimizer, scheduler=scheduler, start_epoch=start_epoch)

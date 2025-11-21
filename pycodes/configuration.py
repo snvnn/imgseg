@@ -43,3 +43,4 @@ HISTORY_PATH = os.path.join(OUTPUT_PATH, 'history.pickle')
 HISTORY_PLOT_PATH = os.path.join(OUTPUT_PATH, 'history.png')  # 드라이브에 저장하고 싶다면 경로를 변경해야 함
 HISTORY_LOGPLOT_PATH = os.path.join(OUTPUT_PATH, 'loghistory.png') 
 PRED_PLOT_PATH = os.path.join(OUTPUT_PATH, 'pred.png')
+SUBMISSION_DIR = 'submission/'

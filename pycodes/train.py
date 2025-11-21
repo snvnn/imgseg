@@ -7,8 +7,17 @@ from torch.nn import CrossEntropyLoss
 import time
 import pickle
 from configuration import LEARNING_RATE, EPOCHS,HISTORY_PATH, DEVICE, MODEL_PATH, MIN_DELTA, BEST_LOSS, PATIENCE, LAMBDA
+import threading
+from save_csv import get_rle  # assumes function exists
+from configuration import SUBMISSION_DIR
 
 CHECKPOINT_PATH = MODEL_PATH + ".ckpt"
+
+# CSV autosave
+def _save_csv_async(model_snapshot, epoch, test_loader_ref):
+    csv_path = f"{SUBMISSION_DIR}/submission_{epoch}.csv"
+    thread = threading.Thread(target=get_rle, args=(model_snapshot, test_loader_ref, csv_path))
+    thread.start()
 
 def dice_loss(pred, target, epsilon=1e-6):
     """
@@ -35,7 +44,7 @@ def dice_loss(pred, target, epsilon=1e-6):
     loss = 1.0 - dice_per_class.mean()
     return loss
 
-def train(model, train_loader, optimizer=None, scheduler=None, start_epoch=0):
+def train(model, train_loader, test_loader, optimizer=None, scheduler=None, start_epoch=0):
 
   model.train()
 
@@ -89,6 +98,11 @@ def train(model, train_loader, optimizer=None, scheduler=None, start_epoch=0):
       avg_train_loss = train_loss/len(train_loader.dataset)
       print('TRAIN LOSS: {}'.format(avg_train_loss))
       history['train_loss'].append(avg_train_loss.cpu().detach().numpy())
+
+
+      # trigger save only when epoch >= 10
+      if epoch >= 10:
+          _save_csv_async(deepcopy(model), epoch, test_loader)
 
       # 현재 epoch의 loss 값
       current_loss = avg_train_loss.item()

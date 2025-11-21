@@ -1,10 +1,10 @@
+import os
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
-from configuration import IMAGE_SIZE, BATCH_SIZE, N_CLASSES, DEVICE, MODEL_PATH, MODEL
+from configuration import BATCH_SIZE, DEVICE, MODEL_PATH, MODEL
 from dataset import TrimapsDataset
-from model import ImprovedUNet
 
 
 # 테스트 데이터 다운로드 & unzip
@@ -21,6 +21,11 @@ def rle_encode(mask):
     return ' '.join(str(x) for x in runs)
 
 def get_rle(model, test_loader, save_path):
+  # Ensure the output directory exists when called from training threads
+  save_dir = os.path.dirname(save_path)
+  if save_dir:
+    os.makedirs(save_dir, exist_ok=True)
+
   model.eval()
 
   image_ids = []
@@ -60,15 +65,27 @@ def get_rle(model, test_loader, save_path):
 
     return df
 
-# Data paths
+# Standalone generation helper
 TEST_PATH = 'images'
 SUBMISSION_FILE_PATH = 'submission/submission.csv'
 
-test_set = TrimapsDataset(TEST_PATH, '', test=True)
-test_loader = DataLoader(test_set, batch_size=BATCH_SIZE, shuffle=False)
+def load_trained_model():
+  if not os.path.exists(MODEL_PATH):
+    raise FileNotFoundError(
+      f"Trained weights not found at {MODEL_PATH}. "
+      "Run training first to generate this file."
+    )
 
-model = MODEL
-model.load_state_dict(torch.load(MODEL_PATH))
-model = model.to(DEVICE)
+  model = MODEL
+  state_dict = torch.load(MODEL_PATH, map_location=DEVICE)
+  model.load_state_dict(state_dict)
+  return model
 
-get_rle(model, test_loader, SUBMISSION_FILE_PATH)
+def build_test_loader():
+  test_set = TrimapsDataset(TEST_PATH, '', test=True)
+  return DataLoader(test_set, batch_size=BATCH_SIZE, shuffle=False)
+
+if __name__ == "__main__":
+  model = load_trained_model().to(DEVICE)
+  test_loader = build_test_loader()
+  get_rle(model, test_loader, SUBMISSION_FILE_PATH)

@@ -1,5 +1,4 @@
-from model import ImprovedUNet
-from configuration import N_CLASSES, IMAGE_SIZE, MODEL_PATH, DEVICE, IMAGE_PATH, MAP_PATH, PRED_PLOT_PATH, MODEL
+from configuration import IMAGE_SIZE, MODEL_PATH, DEVICE, IMAGE_PATH, MAP_PATH, PRED_PLOT_PATH, MODEL
 
 import os
 import torch

@@ -1,4 +1,4 @@
-from model import ImprovedUNet, DeepUNet, OptimizedUNet
+from model import ImprovedUNet, DeepUNet #, OptimizedUNet
 import os
 import torch
 
@@ -13,28 +13,28 @@ torch.manual_seed(0)
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # Data paths
-IMAGE_PATH = 'train/images'
-MAP_PATH = 'train/trimaps'
+IMAGE_PATH = 'open/train/images'
+MAP_PATH = 'open/train/trimaps'
 
 # Learning parameters
-BATCH_SIZE = 24
-LEARNING_RATE = 5e-4
-WEIGHT_DECAY = 0.01
+# Bump batch size to better utilize ~8GB GPU
+BATCH_SIZE = 16
+LEARNING_RATE = 0.001
 EPOCHS = 80
 MIN_DELTA = 5e-4  # 개선으로 인정할 최소 손실 감소량
 BEST_LOSS = float('inf')
-PATIENCE = 12     # PATIENCE > 0 일 때 Early Stop 동작
+PATIENCE = 6     # PATIENCE > 0 일 때 Early Stop 동작
 
-MODEL = OptimizedUNet(
+MODEL = ImprovedUNet(
     in_channel=3,
     out_channel=N_CLASSES,
     img_size=IMAGE_SIZE,
-    base_ch=48,
+    base_ch=32,
     norm="bn",
     se=True,
     drop=0.1,
     use_aspp=True,
-    use_attention=True
+    # use_attention=True
 )  # 사용 모델 선택: ImprovedUNet, DeepUNet, OptimizedUNet 중 선택
 
 CHECKPOINT = False          # True: 기존에 생성된 모델 가중치를 불러와 학습, False: 처음부터 학습
@@ -45,7 +45,7 @@ MIN_SCHEDULING_LR = 1e-6    # LR이 줄어들 수 있는 최소값
 LAMBDA = 0.7                # Dice Loss Fuction 반영 비율. 범위: 0.3 ~ 1.0
 
 # Output paths
-OUTPUT_PATH = 'train/output'
+OUTPUT_PATH = 'output/'
 if not os.path.exists(OUTPUT_PATH):
   os.mkdir(OUTPUT_PATH)
 MODEL_PATH = os.path.join(OUTPUT_PATH, 'model_weight.pth')

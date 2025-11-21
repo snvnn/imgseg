@@ -374,8 +374,8 @@ class OptimizedUNet(nn.Module):
         self.enc3 = DownMobile(base_ch * 2, base_ch * 4, norm=norm, se=se, drop=drop, expand=3.0)
         self.enc4 = DownMobile(base_ch * 4, base_ch * 8, norm=norm, se=se, drop=drop, expand=3.0)
 
-        # Bottleneck
-        self.bottleneck = MobileResidual(base_ch * 8, base_ch * 8, expand=4.0, stride=1, norm=norm, se=se, drop=drop)
+        # Bottleneck (stride=2로 한 단계 더 축소해 up3와 skip spatial을 맞춤)
+        self.bottleneck = MobileResidual(base_ch * 8, base_ch * 8, expand=4.0, stride=2, norm=norm, se=se, drop=drop)
         self.aspp = ASPP(base_ch * 8, base_ch * 8, rates=(1, 6, 12, 18), norm=norm) if use_aspp else nn.Identity()
 
         # Decoder

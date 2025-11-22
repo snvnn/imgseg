@@ -74,6 +74,7 @@ def train(model, train_loader, test_loader, optimizer=None, scheduler=None, star
 
   best_state_dict = None
   epochs_no_improve = 0
+  last_improve_epoch = 0
 
   try:
     for epoch in range(start_epoch, EPOCHS):
@@ -100,10 +101,6 @@ def train(model, train_loader, test_loader, optimizer=None, scheduler=None, star
       history['train_loss'].append(avg_train_loss.cpu().detach().numpy())
 
 
-      # trigger save only when epoch >= 10
-      if epoch >= 10:
-          _save_csv_async(deepcopy(model), epoch, test_loader)
-
       # 현재 epoch의 loss 값
       current_loss = avg_train_loss.item()
 
@@ -113,6 +110,7 @@ def train(model, train_loader, test_loader, optimizer=None, scheduler=None, star
 
       # Early stopping 로직 (train loss 기준)
       if best_loss - current_loss > min_delta:
+        last_improve_epoch = epoch
         best_loss = current_loss
         best_state_dict = deepcopy(model.state_dict())
         epochs_no_improve = 0
@@ -126,6 +124,10 @@ def train(model, train_loader, test_loader, optimizer=None, scheduler=None, star
         if (patience > 0 and epochs_no_improve >= patience):
           print(f'Early stopping triggered at epoch {epoch+1}')
           break
+    
+      # trigger save only when epoch >= 10
+      if epoch >= 10 and epoch-last_improve_epoch == 5 and best_loss - current_loss > min_delta:
+          _save_csv_async(deepcopy(model), epoch, test_loader)
         
       # 매 epoch 끝날 때 체크포인트 저장 (resume 용)
       checkpoint = {

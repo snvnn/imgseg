@@ -20,12 +20,12 @@ MAP_PATH = 'open/train/trimaps'
 # Bump batch size to better utilize ~8GB GPU
 BATCH_SIZE = 16
 LEARNING_RATE = 0.001
-EPOCHS = 80
+EPOCHS = 1000
 MIN_DELTA = 5e-4  # 개선으로 인정할 최소 손실 감소량
 BEST_LOSS = float('inf')
 PATIENCE = 6     # PATIENCE > 0 일 때 Early Stop 동작
 
-MODEL = ImprovedUNet(
+MODEL = DeepUNet(
     in_channel=3,
     out_channel=N_CLASSES,
     img_size=IMAGE_SIZE,

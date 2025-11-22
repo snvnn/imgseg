@@ -126,7 +126,7 @@ def train(model, train_loader, test_loader, optimizer=None, scheduler=None, star
           break
     
       # trigger save only when epoch >= 10
-      if epoch >= 10 and epoch-last_improve_epoch == 5 and best_loss - current_loss > min_delta:
+      if epoch >= 10 and epoch % 5 == 0:
           _save_csv_async(deepcopy(model), epoch, test_loader)
         
       # 매 epoch 끝날 때 체크포인트 저장 (resume 용)

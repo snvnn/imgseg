@@ -1,11 +1,11 @@
 from torch.utils.data import DataLoader
 from dataset import TrimapsDataset
-from configuration import IMAGE_PATH, BATCH_SIZE, MAP_PATH, MODEL_PATH, DEVICE, CHECKPOINT, LEARNING_RATE, WEIGHT_DECAY, LR_SCHEDULING_FACTOR, LR_SCHEDULING_PATIENCE, MIN_SCHEDULING_LR, MODEL
+from configuration import IMAGE_PATH, BATCH_SIZE, MAP_PATH, MODEL_PATH, DEVICE, CHECKPOINT, LEARNING_RATE, LR_SCHEDULING_FACTOR, LR_SCHEDULING_PATIENCE, MIN_SCHEDULING_LR, MODEL
 from train import train
 
 import os
 import torch
-from torch.optim import AdamW
+from torch.optim import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 train_set = TrimapsDataset(IMAGE_PATH, MAP_PATH, test=False)
@@ -14,7 +14,7 @@ test_loader = DataLoader(test_set, batch_size=BATCH_SIZE, shuffle=False)
 train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True)
 
 model = MODEL
-optimizer = AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
+optimizer = Adam(model.parameters(), lr=LEARNING_RATE)
 scheduler = ReduceLROnPlateau(
     optimizer,
     mode="min",

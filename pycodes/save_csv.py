@@ -1,9 +1,10 @@
 import os
+from copy import deepcopy
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
-from configuration import BATCH_SIZE, DEVICE, MODEL_PATH, MODEL
+from configuration import BATCH_SIZE, DEVICE, MODEL_PATH, MODEL, SUBMISSION_DIR
 from dataset import TrimapsDataset
 
 
@@ -67,17 +68,41 @@ def get_rle(model, test_loader, save_path):
 
 # Standalone generation helper
 TEST_PATH = 'images'
-SUBMISSION_FILE_PATH = 'submission/submission.csv'
+CHECKPOINT_DIR = os.path.dirname(MODEL_PATH)
 
-def load_trained_model():
-  if not os.path.exists(MODEL_PATH):
+def _checkpoint_to_csv_name(checkpoint_path):
+  base = os.path.basename(checkpoint_path)
+  # Strip all suffixes (e.g., .pth.ckpt -> model_weight)
+  while True:
+    stem, ext = os.path.splitext(base)
+    if not ext:
+      break
+    base = stem
+  return os.path.join(SUBMISSION_DIR, f"{base}.csv")
+
+def _list_checkpoints(checkpoint_dir):
+  if not os.path.isdir(checkpoint_dir):
+    raise FileNotFoundError(f"Checkpoint directory not found: {checkpoint_dir}")
+
+  allowed_ext = ('.pth', '.pt', '.ckpt')
+  checkpoints = [
+    os.path.join(checkpoint_dir, name)
+    for name in os.listdir(checkpoint_dir)
+    if name.lower().endswith(allowed_ext)
+  ]
+  return sorted(checkpoints)
+
+def load_trained_model(checkpoint_path):
+  if not os.path.exists(checkpoint_path):
     raise FileNotFoundError(
-      f"Trained weights not found at {MODEL_PATH}. "
-      "Run training first to generate this file."
+      f"Trained weights not found at {checkpoint_path}. "
+      "Run training first to generate this file or place checkpoints in the directory."
     )
 
-  model = MODEL
-  state_dict = torch.load(MODEL_PATH, map_location=DEVICE)
+  model = deepcopy(MODEL)
+  state_dict = torch.load(checkpoint_path, map_location=DEVICE)
+  if isinstance(state_dict, dict) and "model_state" in state_dict:
+    state_dict = state_dict["model_state"]
   model.load_state_dict(state_dict)
   return model
 
@@ -85,7 +110,19 @@ def build_test_loader():
   test_set = TrimapsDataset(TEST_PATH, '', test=True)
   return DataLoader(test_set, batch_size=BATCH_SIZE, shuffle=False)
 
-if __name__ == "__main__":
-  model = load_trained_model().to(DEVICE)
+def main():
   test_loader = build_test_loader()
-  get_rle(model, test_loader, SUBMISSION_FILE_PATH)
+
+  checkpoints = _list_checkpoints(CHECKPOINT_DIR)
+  if not checkpoints:
+    raise FileNotFoundError(f"No checkpoint files found in {CHECKPOINT_DIR}")
+
+  os.makedirs(SUBMISSION_DIR, exist_ok=True)
+
+  for checkpoint_path in checkpoints:
+    model = load_trained_model(checkpoint_path).to(DEVICE)
+    submission_path = _checkpoint_to_csv_name(checkpoint_path)
+    get_rle(model, test_loader, submission_path)
+
+if __name__ == "__main__":
+  main()

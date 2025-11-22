@@ -1,17 +1,17 @@
 import torch
 import torch.nn.functional as F
 from copy import deepcopy
-from torch.optim import AdamW
+from torch.optim import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.nn import CrossEntropyLoss
 import time
 import pickle
-from configuration import LEARNING_RATE, EPOCHS, HISTORY_PATH, DEVICE, MODEL_PATH, MIN_DELTA, BEST_LOSS, PATIENCE, LAMBDA, WEIGHT_DECAY
+from configuration import LEARNING_RATE, EPOCHS, HISTORY_PATH, DEVICE, MODEL_PATH, MIN_DELTA, BEST_LOSS, PATIENCE, LAMBDA, OUTPUT_PATH
 import threading
 from save_csv import get_rle  # assumes function exists
 from configuration import SUBMISSION_DIR
+import os
 
-CHECKPOINT_PATH = MODEL_PATH + ".ckpt"
 
 # CSV autosave
 def _save_csv_async(model_snapshot, epoch, test_loader_ref):
@@ -51,7 +51,7 @@ def train(model, train_loader, test_loader, optimizer=None, scheduler=None, star
   loss_fn = CrossEntropyLoss()
   # 외부에서 optimizer를 넘겨주지 않으면 기본 AdamW 생성
   if optimizer is None:
-    optimizer = AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
+    optimizer = Adam(model.parameters(), lr=LEARNING_RATE)
 
   # 외부에서 scheduler를 넘겨주지 않으면 기본 ReduceLROnPlateau 생성
   if scheduler is None:
@@ -110,7 +110,6 @@ def train(model, train_loader, test_loader, optimizer=None, scheduler=None, star
 
       # Early stopping 로직 (train loss 기준)
       if best_loss - current_loss > min_delta:
-        last_improve_epoch = epoch
         best_loss = current_loss
         best_state_dict = deepcopy(model.state_dict())
         epochs_no_improve = 0
@@ -124,10 +123,6 @@ def train(model, train_loader, test_loader, optimizer=None, scheduler=None, star
         if (patience > 0 and epochs_no_improve >= patience):
           print(f'Early stopping triggered at epoch {epoch+1}')
           break
-    
-      # trigger save only when epoch >= 10
-      if epoch >= 10 and epoch % 5 == 0:
-          _save_csv_async(deepcopy(model), epoch, test_loader)
         
       # 매 epoch 끝날 때 체크포인트 저장 (resume 용)
       checkpoint = {
@@ -137,7 +132,7 @@ def train(model, train_loader, test_loader, optimizer=None, scheduler=None, star
         "scheduler_state": scheduler.state_dict() if scheduler is not None else None
       }
       print("Current LR:", optimizer.param_groups[0]["lr"])
-      torch.save(checkpoint, CHECKPOINT_PATH)
+      torch.save(checkpoint, os.path.join(OUTPUT_PATH, f"checkpoint_epoch_{epoch}.pth"))
     
   except KeyboardInterrupt:
     # 학습 중 사용자가 중단한 경우에도 현재까지의 최고 모델을 저장

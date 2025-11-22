@@ -125,4 +125,6 @@ def main():
     get_rle(model, test_loader, submission_path)
 
 if __name__ == "__main__":
+  print("Starting CSV generation from all checkpoints...")
   main()
+  print("All submissions generated successfully!")

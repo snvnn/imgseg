@@ -7,17 +7,9 @@ from torch.nn import CrossEntropyLoss
 import time
 import pickle
 from configuration import LEARNING_RATE, EPOCHS, HISTORY_PATH, DEVICE, MODEL_PATH, MIN_DELTA, BEST_LOSS, PATIENCE, LAMBDA, OUTPUT_PATH
-import threading
 from save_csv import get_rle  # assumes function exists
-from configuration import SUBMISSION_DIR
 import os
 
-
-# CSV autosave
-def _save_csv_async(model_snapshot, epoch, test_loader_ref):
-    csv_path = f"{SUBMISSION_DIR}/submission_{epoch}.csv"
-    thread = threading.Thread(target=get_rle, args=(model_snapshot, test_loader_ref, csv_path))
-    thread.start()
 
 def dice_loss(pred, target, epsilon=1e-6):
     """
@@ -74,7 +66,6 @@ def train(model, train_loader, test_loader, optimizer=None, scheduler=None, star
 
   best_state_dict = None
   epochs_no_improve = 0
-  last_improve_epoch = 0
 
   try:
     for epoch in range(start_epoch, EPOCHS):
